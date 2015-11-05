@@ -223,6 +223,12 @@ if (BUILD_TESTS OR BUILD_EXAMPLES)
             message (STATUS "       " ${boost_lib})
         endforeach ()
         message ("")
+
+        #For some unknown reason this macro is required to fix linker errors in the tests
+        #on Ubuntu 14.04 AMD64 with the default GCC 4.8 and a non-Ubuntu Boost 1.59.
+        if(CMAKE_COMPILER_IS_GNUCXX)
+            add_definitions("-DBOOST_TEST_DYN_LINK")
+        endif()
     else ()
         message (FATAL_ERROR "Failed to find required dependency: boost")
     endif ()
