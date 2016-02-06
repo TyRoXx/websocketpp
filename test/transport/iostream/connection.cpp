@@ -420,25 +420,25 @@ BOOST_AUTO_TEST_CASE( async_read_at_least ) {
     std::stringstream channel;
     channel << "abcd";
     channel >> *con;
-    BOOST_CHECK_EQUAL( channel.tellg(), -1 );
+    BOOST_CHECK_EQUAL( channel.tellg(), std::stringstream::pos_type(-1) );
     BOOST_CHECK_EQUAL( con->ec, make_error_code(websocketpp::error::test) );
 
     std::stringstream channel2;
     channel2 << "e";
     channel2 >> *con;
-    BOOST_CHECK_EQUAL( channel2.tellg(), -1 );
+    BOOST_CHECK_EQUAL( channel2.tellg(), std::stringstream::pos_type(-1));
     BOOST_CHECK( !con->ec );
     BOOST_CHECK_EQUAL( std::string(buf,10), "abcdexxxxx" );
 
     std::stringstream channel3;
     channel3 << "f";
     channel3 >> *con;
-    BOOST_CHECK_EQUAL( channel3.tellg(), 0 );
+    BOOST_CHECK_EQUAL( channel3.tellg(), std::stringstream::pos_type(0));
     BOOST_CHECK( !con->ec );
     BOOST_CHECK_EQUAL( std::string(buf,10), "abcdexxxxx" );
     con->async_read_at_least(1,buf+5,5);
     channel3 >> *con;
-    BOOST_CHECK_EQUAL( channel3.tellg(), -1 );
+    BOOST_CHECK_EQUAL( channel3.tellg(), std::stringstream::pos_type(-1));
     BOOST_CHECK( !con->ec );
     BOOST_CHECK_EQUAL( std::string(buf,10), "abcdefxxxx" );
 }
@@ -456,13 +456,13 @@ BOOST_AUTO_TEST_CASE( async_read_at_least2 ) {
     std::stringstream channel;
     channel << "abcdefg";
     channel >> *con;
-    BOOST_CHECK_EQUAL( channel.tellg(), 5 );
+    BOOST_CHECK_EQUAL( channel.tellg(), std::stringstream::pos_type(5));
     BOOST_CHECK( !con->ec );
     BOOST_CHECK_EQUAL( std::string(buf,10), "abcdexxxxx" );
 
     con->async_read_at_least(1,buf+5,5);
     channel >> *con;
-    BOOST_CHECK_EQUAL( channel.tellg(), -1 );
+    BOOST_CHECK_EQUAL( channel.tellg(), std::stringstream::pos_type(-1));
     BOOST_CHECK( !con->ec );
     BOOST_CHECK_EQUAL( std::string(buf,10), "abcdefgxxx" );
 }
