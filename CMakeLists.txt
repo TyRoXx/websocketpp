@@ -103,6 +103,7 @@ if (BUILD_TESTS OR BUILD_EXAMPLES)
 
     # Visual studio
     if (MSVC)
+        set (WEBSOCKETPP_PLATFORM_LIBS ws2_32)
         set (WEBSOCKETPP_BOOST_LIBS system thread)
         set (CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /GL /Gy /GF /Ox /Ob2 /Ot /Oi /MP /arch:SSE2 /fp:fast")
         set (CMAKE_SHARED_LINKER_FLAGS_RELEASE "${CMAKE_SHARED_LINKER_FLAGS_RELEASE} /LTCG /INCREMENTAL:NO /OPT:REF /OPT:ICF")
@@ -160,81 +161,86 @@ if (BUILD_TESTS OR BUILD_EXAMPLES)
 
     ############ Dependencies
 
-    # Set BOOST_ROOT env variable or pass with cmake -DBOOST_ROOT=path.
-    # BOOST_ROOT can also be defined by a previous run from cmake cache.
-    if (NOT "$ENV{BOOST_ROOT_CPP11}" STREQUAL "")
-        # Scons documentation for BOOST_ROOT_CPP11:
-        # "look for optional second boostroot compiled with clang's libc++ STL library
-        # this prevents warnings/errors when linking code built with two different
-        # incompatible STL libraries."
-        file (TO_CMAKE_PATH "$ENV{BOOST_ROOT_CPP11}" BOOST_ROOT)
-        set (BOOST_ROOT ${BOOST_ROOT} CACHE PATH "BOOST_ROOT dependency path" FORCE)
-    endif ()
-    if ("${BOOST_ROOT}" STREQUAL "")
-        file (TO_CMAKE_PATH "$ENV{BOOST_ROOT}" BOOST_ROOT)
-        # Cache BOOST_ROOT for runs that do not define $ENV{BOOST_ROOT}.
-        set (BOOST_ROOT ${BOOST_ROOT} CACHE PATH "BOOST_ROOT dependency path" FORCE)
-    endif ()
+    if(EXISTS ${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
+        include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
+        conan_basic_setup()
+    else()
+        # Set BOOST_ROOT env variable or pass with cmake -DBOOST_ROOT=path.
+        # BOOST_ROOT can also be defined by a previous run from cmake cache.
+        if (NOT "$ENV{BOOST_ROOT_CPP11}" STREQUAL "")
+            # Scons documentation for BOOST_ROOT_CPP11:
+            # "look for optional second boostroot compiled with clang's libc++ STL library
+            # this prevents warnings/errors when linking code built with two different
+            # incompatible STL libraries."
+            file (TO_CMAKE_PATH "$ENV{BOOST_ROOT_CPP11}" BOOST_ROOT)
+            set (BOOST_ROOT ${BOOST_ROOT} CACHE PATH "BOOST_ROOT dependency path" FORCE)
+        endif ()
+        if ("${BOOST_ROOT}" STREQUAL "")
+            file (TO_CMAKE_PATH "$ENV{BOOST_ROOT}" BOOST_ROOT)
+            # Cache BOOST_ROOT for runs that do not define $ENV{BOOST_ROOT}.
+            set (BOOST_ROOT ${BOOST_ROOT} CACHE PATH "BOOST_ROOT dependency path" FORCE)
+        endif ()
 
-    message ("* Configuring Boost")
-    message (STATUS "-- Using BOOST_ROOT")
-    message (STATUS "       " ${BOOST_ROOT})
+        message ("* Configuring Boost")
+        message (STATUS "-- Using BOOST_ROOT")
+        message (STATUS "       " ${BOOST_ROOT})
 
-    if (MSVC)
+        if (MSVC)
+            set (Boost_USE_MULTITHREADED TRUE)
+            set (Boost_USE_STATIC_LIBS TRUE)
+        else ()
+            set (Boost_USE_MULTITHREADED FALSE)
+            set (Boost_USE_STATIC_LIBS FALSE)
+        endif ()
+
+        if (BOOST_STATIC)
+            set (Boost_USE_STATIC_LIBS TRUE)
+        endif ()
+
+        if (NOT Boost_USE_STATIC_LIBS)
+            add_definitions (/DBOOST_TEST_DYN_LINK)
+        endif ()
+
+        set (Boost_FIND_REQUIRED TRUE)
+        set (Boost_FIND_QUIETLY TRUE)
+        set (Boost_DEBUG FALSE)
         set (Boost_USE_MULTITHREADED TRUE)
-        set (Boost_USE_STATIC_LIBS TRUE)
-    else ()
-        set (Boost_USE_MULTITHREADED FALSE)
-        set (Boost_USE_STATIC_LIBS FALSE)
-    endif ()
+        set (Boost_ADDITIONAL_VERSIONS "1.39.0" "1.40.0" "1.41.0" "1.42.0" "1.43.0" "1.44.0" "1.46.1") # todo: someone who knows better spesify these!
 
-	if (BOOST_STATIC)
-		set (Boost_USE_STATIC_LIBS TRUE)
-	endif ()
+        find_package (Boost 1.39.0 COMPONENTS "${WEBSOCKETPP_BOOST_LIBS}")
 
-    if (NOT Boost_USE_STATIC_LIBS)
-        add_definitions (/DBOOST_TEST_DYN_LINK)
-    endif ()
+        if (Boost_FOUND)
+            # Boost is a project wide global dependency.
+            include_directories (${Boost_INCLUDE_DIRS})
+            link_directories (${Boost_LIBRARY_DIRS})
 
-    set (Boost_FIND_REQUIRED TRUE)
-    set (Boost_FIND_QUIETLY TRUE)
-    set (Boost_DEBUG FALSE)
-    set (Boost_USE_MULTITHREADED TRUE)
-    set (Boost_ADDITIONAL_VERSIONS "1.39.0" "1.40.0" "1.41.0" "1.42.0" "1.43.0" "1.44.0" "1.46.1") # todo: someone who knows better spesify these!
+            # Pretty print status
+            message (STATUS "-- Include Directories")
+            foreach (include_dir ${Boost_INCLUDE_DIRS})
+                message (STATUS "       " ${include_dir})
+            endforeach ()
+            message (STATUS "-- Library Directories")
+            foreach (library_dir ${Boost_LIBRARY_DIRS})
+                message (STATUS "       " ${library_dir})
+            endforeach ()
+            message (STATUS "-- Libraries")
+            foreach (boost_lib ${Boost_LIBRARIES})
+                message (STATUS "       " ${boost_lib})
+            endforeach ()
+            message ("")
 
-    find_package (Boost 1.39.0 COMPONENTS "${WEBSOCKETPP_BOOST_LIBS}")
+            #For some unknown reason this macro is required to fix linker errors in the tests
+            #on Ubuntu 14.04 AMD64 with the default GCC 4.8 and a non-Ubuntu Boost 1.59.
+            if(CMAKE_COMPILER_IS_GNUCXX)
+                add_definitions("-DBOOST_TEST_DYN_LINK")
+            endif()
+        else ()
+            message (FATAL_ERROR "Failed to find required dependency: boost")
+        endif ()
 
-    if (Boost_FOUND)
-        # Boost is a project wide global dependency.
-        include_directories (${Boost_INCLUDE_DIRS})
-        link_directories (${Boost_LIBRARY_DIRS})
-
-        # Pretty print status
-        message (STATUS "-- Include Directories")
-        foreach (include_dir ${Boost_INCLUDE_DIRS})
-            message (STATUS "       " ${include_dir})
-        endforeach ()
-        message (STATUS "-- Library Directories")
-        foreach (library_dir ${Boost_LIBRARY_DIRS})
-            message (STATUS "       " ${library_dir})
-        endforeach ()
-        message (STATUS "-- Libraries")
-        foreach (boost_lib ${Boost_LIBRARIES})
-            message (STATUS "       " ${boost_lib})
-        endforeach ()
-        message ("")
-
-        #For some unknown reason this macro is required to fix linker errors in the tests
-        #on Ubuntu 14.04 AMD64 with the default GCC 4.8 and a non-Ubuntu Boost 1.59.
-        if(CMAKE_COMPILER_IS_GNUCXX)
-            add_definitions("-DBOOST_TEST_DYN_LINK")
-        endif()
-    else ()
-        message (FATAL_ERROR "Failed to find required dependency: boost")
-    endif ()
-
-    find_package(OpenSSL)
-    find_package(ZLIB)
+        find_package(OpenSSL)
+        find_package(ZLIB)
+    endif()
 endif()
 
 ############ Add projects

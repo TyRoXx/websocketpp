@@ -88,7 +88,7 @@ macro (final_target)
 endmacro ()
 
 macro (link_boost)
-    target_link_libraries (${TARGET_NAME} ${Boost_LIBRARIES})
+    target_link_libraries (${TARGET_NAME} ${Boost_LIBRARIES} ${CONAN_LIBS})
 endmacro ()
 
 macro (link_openssl)
